@@ -29,7 +29,7 @@ def scan_log():
 
     # os.getcwd()获取当前文件的路径,os.path.dirname()获取指定文件路径的上级路径
     path_dir = os.path.dirname(__file__)
-    log_path = os.path.abspath(os.path.dirname(path_dir)) + '/log/' + rq
+    log_path = os.path.abspath(os.path.dirname(path_dir)) + '/log/20201010'
     log_name = os.path.join(log_path, 'ftp_check.log')
 
     if not os.path.exists(log_path):

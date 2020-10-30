@@ -105,7 +105,8 @@ def ds_get_workflow(ds_url_workflow_list, ds_token, workflowid):
                     subtask_endtime = datetime.datetime.strptime(aa[ii]['endtime'], '%Y-%m-%d %H:%M:%S')
                     subtask_time_str = str(subtask_endtime - subtask_starttime)
 
-                    d[aa[ii]['name'].replace("\n", "")] = {"start": str(subtask_starttime), "end": str(subtask_endtime), "run": subtask_time_str}
+                    d[aa[ii]['name'].replace("\n", "")] = {"start": str(subtask_starttime), "end": str(subtask_endtime),
+                                                           "run": subtask_time_str}
 
             return ds_workflow_id['starttime'], None, '工作流正在执行', d
         else:
@@ -122,7 +123,8 @@ def ds_get_workflow(ds_url_workflow_list, ds_token, workflowid):
                     subtask_endtime = datetime.datetime.strptime(aa[ii]['endtime'], '%Y-%m-%d %H:%M:%S')
                     subtask_starttime = datetime.datetime.strptime(aa[ii]['starttime'], '%Y-%m-%d %H:%M:%S')
                     subtask_time_str = str(subtask_endtime - subtask_starttime)
-                    d[aa[ii]['name'].replace("\n", "")] = {"start": str(subtask_starttime), "end": str(subtask_endtime), "run": subtask_time_str}
+                    d[aa[ii]['name'].replace("\n", "")] = {"start": str(subtask_starttime), "end": str(subtask_endtime),
+                                                           "run": subtask_time_str}
                 else:
                     d[aa[ii]['name'].replace("\n", "")] = {"start": "", "end": "",
                                                            "run": ""}
@@ -132,25 +134,98 @@ def ds_get_workflow(ds_url_workflow_list, ds_token, workflowid):
             return ds_workflow_id['starttime'], ds_workflow_id['endtime'], expend_time, d
 
 
-if __name__ == '__main__':
-
+def ds_get_workflow_get_min_max(csv_fliename, subao_list, zhongbao_list):
     # 创建文件对象
-    f = open('统计工作流及任务执行时间.csv', 'w', encoding='utf-8', newline="")
+    with open(csv_fliename, 'w', encoding='utf-8', newline="") as f:
+        # 基于文件对象构建 csv写入对象
+        csv_writer = csv.writer(f)
 
-    # 基于文件对象构建 csv写入对象
-    csv_writer = csv.writer(f)
+        ds_token = ds_get_longin_data(DS_URL_LOGIN, DS_USERNAME, DS_PASSWORD)
+        a_name = ds_get_workflowid(DS_URL_WORKFLOW_LIST, ds_token)
+        # 构建列表头
+        csv_writer.writerow(["业务系统", "工作流名称", "子任务名称", "开始时间", "结束时间", "执行时长"])
+        for every_id in a_name:
+            wf_starttime, wf_endtime, wf_expend_time, task_namelist = ds_get_workflow(DS_URL_WORKFLOW, ds_token,
+                                                                                      every_id)
 
-    ds_token = ds_get_longin_data(DS_URL_LOGIN, DS_USERNAME, DS_PASSWORD)
-    a_name = ds_get_workflowid(DS_URL_WORKFLOW_LIST, ds_token)
-    # 构建列表头
-    csv_writer.writerow(["工作流名称", "子任务名称", "开始时间", "结束时间", "执行时长"])
-    for every_id in a_name:
-        wf_starttime, wf_endtime, wf_expend_time, task_namelist = ds_get_workflow(DS_URL_WORKFLOW, ds_token, every_id)
-        csv_writer.writerow([a_name[every_id], "", wf_starttime, wf_endtime, wf_expend_time])
-        # 写入csv文件内容
-        for kv in task_namelist.items():
-            csv_writer.writerow([a_name[every_id], kv[0], kv[1]["start"], kv[1]["end"],  kv[1]["run"]])
-        task_namelist.clear()
+            wf_name = a_name[every_id]
+            if wf_name.split("_")[0] == "WF":
+                operation_system = "原仓库业务"
+                # csv_writer.writerow(["原仓库业务", wf_name, "", wf_starttime, wf_endtime, wf_expend_time])
+            elif wf_name.split("_")[0] == "CACC":
+                operation_system = "卡账户"
+                # csv_writer.writerow(["卡账户", wf_name, "", wf_starttime, wf_endtime, wf_expend_time])
+            elif wf_name.split("_")[0] == "STN":
+                operation_system = "车站档案"
+                # csv_writer.writerow(["车站档案", wf_name, "", wf_starttime, wf_endtime, wf_expend_time])
+            else:
+                operation_system = "测试"
+                # csv_writer.writerow(["测试", wf_name, "", wf_starttime, wf_endtime, wf_expend_time])
+            csv_writer.writerow([operation_system, wf_name, "", wf_starttime, wf_endtime, wf_expend_time])
+            # 写入csv文件内容
+            for kv in task_namelist.items():
+                csv_writer.writerow([operation_system, wf_name, kv[0], kv[1]["start"], kv[1]["end"], kv[1]["run"]])
+                if kv[0].upper() in subao_list:
+                    subao_min_list.append(kv[1]["start"])
+                    subao_max_list.append(kv[1]["end"])
+                if kv[0].upper() in zhongbao_list:
+                    zhongbao_max_list.append(kv[1]["end"])
+            task_namelist.clear()
 
-    # 关闭文件
-    f.close()
+
+def local_get_min_max(csv_fliename, subao_list, zhongbao_list):
+    with open(csv_fliename, 'r', encoding='utf-8') as filein:
+        for line in filein:
+            if line.split(',')[2].upper() in subao_list:
+                subao_min_list.append(line.split(',')[3])
+                subao_max_list.append(line.split(',')[4])
+            if line.split(',')[2].upper() in zhongbao_list:
+                zhongbao_max_list.append(line.split(',')[4])
+
+
+if __name__ == '__main__':
+    csv_fliename = 'D:\\统计工作流及任务执行时间.csv'
+    subao_list = ['T98_OWNLINE_ENEX_PQ_DATE_ST0300',
+                  'T98_OWNEN_OTHEX_PQ_DATE_ST0300',
+                  'T98_PASS_OWNLINE_PQ_DATE_ST0300',
+                  'T98_PASGR_QTTY_DATE_ST0300',
+                  'T98_TRAN_QTTY_DATE_ST0300',
+                  'T98_TRAN_QTTY_PERIOD_ST0300',
+                  'T98_DEC_SECT_FCRATE_PERIOD_ST0300',
+                  'T98_LINE_AVERAGE_D_ST0300',
+                  'T98_NET_AVERAGE_D_ST0300',
+                  'T98_SECT_FCRATE_PERIOD_ST0300',
+                  'CUT_PI_EXIT_S_LINEDESC_ACCCODE0200',
+                  'CUT_PI_EXIT_E_LINEDESC_ACCCODE0200',
+                  'CUT_PI_EXIT_O_LINEDESC_ACCCODE0200',
+                  'T98_PASGR_DATE_ST0300',
+                  'T98_PASGR_PERIOD_ST0300']
+    zhongbao_list = ['T98_OWNLINE_ENEX_PQ_DATE_ST_E0300',
+                     'T98_OWNEN_OTHEX_PQ_DATE_ST_E0300',
+                     'T98_PASS_OWNLINE_PQ_DATE_ST_E0300',
+                     'T98_PASGR_QTTY_DATE_ST_E0300',
+                     'T98_TRAN_QTTY_DATE_ST_E0300',
+                     'T98_TRAN_QTTY_PERIOD_ST_E0300',
+                     'T98_DEC_SECT_FCRATE_PERIOD_ST_E0300',
+                     'T98_LINE_AVERAGE_D_ST_E0300',
+                     'T98_NET_AVERAGE_D_ST_E0300',
+                     'T98_SECT_FCRATE_PERIOD_ST_E0300',
+                     'CUT_PI_EXIT_S_LINEDESC_ACCCODE0200',
+                     'CUT_PI_EXIT_E_LINEDESC_ACCCODE0200',
+                     'CUT_PI_EXIT_O_LINEDESC_ACCCODE0200',
+                     'T98_PASGR_DATE_ST_E0300',
+                     'T98_PASGR_PERIOD_ST_E0300']
+
+    subao_min_list = []
+    subao_max_list = []
+    zhongbao_max_list = []
+
+    # 重新生成文档并进行查找终报速报开始结束日期
+    ds_get_workflow_get_min_max(csv_fliename, subao_list, zhongbao_list)
+
+    # 不重新生成文档进行查找终报速报开始结束日期
+    # local_get_min_max(csv_fliename, subao_list, zhongbao_list)
+
+    print('速报最早开始时间' + min(subao_min_list))
+    print('速报最晚结束时间' + max(subao_max_list))
+    print('终报最晚结束时间' + max(zhongbao_max_list))

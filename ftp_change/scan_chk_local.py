@@ -274,9 +274,6 @@ def dispose_xml(xml_file):
         0]+'/'
     # txt_local_dir_bak = os.path.dirname(os.path.abspath(__file__)) + '/data/txt_bak/' + xml_file.split('.')[2].split('_')[
     #     0]+'/'
-    os.system('mkdir -p %s' % xml_local_dir)
-    os.system('mkdir -p %s' % txt_local_dir)
-    # os.system('mkdir -p %s' % xml_local_dir)
 
     ftp_xmlfile_path = ftp_dir + xml_file
     dst_xmlfile_path = xml_local_dir + xml_file
@@ -309,8 +306,6 @@ def dispose_xml(xml_file):
 
     return csv_file_list
 
-    # 将本地 xml 文件移至本地备份文件夹
-    # os.system('mv %s %s' % (txt_local_dir + xml_file, txt_local_dir_bak + xml_file))
 
     # 移除本地生成的文件
     # os.remove(local_dir + txt_file)
@@ -346,7 +341,7 @@ def dispose_numfile(num_file):
 
     # 数据文件路径和备份路径
     num_local_dir = os.path.dirname(os.path.abspath(__file__)) + '/data/numcsv/' + date_dt.replace('-', '') + '/' + num_interfaceCode + '/'
-    os.system('mkdir -p %s' % num_local_dir)
+
 
     numfilename = date_dt.replace("-", "") + num_file_name + '_00000000.csv'
     # num_file_list.add(numfilename)
@@ -708,8 +703,6 @@ def start_new_and_error():
 
         scan_log.info("nohup python3 LocalCSVToHive.py %s %s %s 1>/dev/null 2>&1 &" %
                       (ftp_dir, status_row_FtpFileName, local_dir))
-        os.system("nohup python3 LocalCSVToHive.py %s %s %s 1>/dev/null 2>&1 &" %
-                  (ftp_dir, status_row_FtpFileName, local_dir))
         mysql.update("UPDATE %s.%s SET etl_job_status='%s' WHERE FtpFileName = '%s'" % (
             mysqldb, mysqltable, assign_status, status_row_FtpFileName))
 
@@ -776,8 +769,9 @@ if __name__ == '__main__':
     """
     paralist = sys.argv
 
-    # 参数个数为两个时
-    if 2 == len(paralist):
+    # 参数个数为一个时
+    if 1 == len(paralist):
+        csv_file_list = set()
         # 实例化
         ftpinstance = FtpOps(host, port, ftpuname, ftppwd)
 
@@ -786,282 +780,328 @@ if __name__ == '__main__':
 
         # 切换目录
         ftp.cwd(ftp_dir)
+        # fff = ftp.dir()
+        # print(fff)
+        # print('111')
+
+
+
+        # 数据文件路径
+        local_dir = os.path.dirname(os.path.abspath(__file__)) + '/data/20201010/'
+        # 连接 Mysql
+        mysql = Mysql(mysqlhost, mysqluser, mysqlpwd, mysqldb)
+        # print(ftp.retrlines('MLSD'))
+        # print(ftp.size("d"))
+        # aa = ftp.retrlines('list')
+
+        # print(aa)
+        # print(type(aa))
+        # print("aa",ftp.retrlines('list'))
+
+        # for r in ftp.dir():
+        #     if r.upper().startswith('D'):
+        #         print()
 
         # 获取文件目录
         fileLists = ftp.nlst()
         for file in fileLists:
-            if re.search(r'%s' % paralist[1], file):
-                try:
-                    ftp.rename(ftp_dir + file, ftp_bak_dir + file)
-                except Exception as e:
-                    scan_log.error(e)
+
+            # try:
+            #
+            #     if ftp.size(file) == 0:
+            #         print("size = 0:")
+            #         print(file)
+            #         print("----------")
+            #         # ftp.rename(ftp_dir + file, ftp_bak_dir + file)
+            # except Exception as e:
+            #     print(e)
+
+            # 处理已经成功处理的文件
+            try:
+                if file != 'd' and file.split(".")[1] != 'GPDD' and file.split(".")[1] != 'XJCX' and file.split(".")[1] != 'JCYG' and \
+                        file.split(".")[1] != 'LJJY' and file.split(".")[1] != '010016':
+                    etl_job_status_list = mysql.show(
+                        "select etl_job_status from %s.%s where ftpfilename='%s'" % (mysqldb, mysqltable, file))
+                    print(etl_job_status_list)
+                    print(type(etl_job_status_list))
+
+            except Exception as e:
+                print(e)
+
+
         ftp.close()
-        sys.exit(0)
 
-    # 参数个数为一个时
-    elif 1 == len(paralist):
-        # 无限循环
-        while True:
-            # 先将非结构化数据移至备份库
-            for not_running in not_running_list:
-                os.system("python3 scan_chk.py _%s_" % not_running)
+        # time.sleep(10)
 
-            # 实例化
-            ftpinstance = FtpOps(host, port, ftpuname, ftppwd)
 
-            # 创建ftp连接
-            ftp = ftpinstance.ftp_connect()
 
-            # 切换目录
-            ftp.cwd(ftp_dir)
 
-            # 获取文件目录
-            fileLists = ftp.nlst()
 
-            # 数据文件路径
-            local_dir = os.path.dirname(os.path.abspath(__file__)) + '/data/' + time.strftime('%Y%m%d', time.localtime(
-                time.time())) + '/'
-            # 若不存在本地数据备份目录，则创建该目录
-            os.system('mkdir -p %s' % local_dir)
 
-            # 连接 Mysql
-            mysql = Mysql(mysqlhost, mysqluser, mysqlpwd, mysqldb)
 
-            # 查询表中三天内的数据文件名
-            select_FileName_sql = "select ftpFileName from %s.%s where ctime between date_add(now(), interval -10 day) and now() " % (
-                mysqldb, mysqltable)
-            select_FileName_sql_res = mysql.show(select_FileName_sql)
-
-            # 遍历表中文件名
-            fileName_list = list()
-            for fileName_row in select_FileName_sql_res:
-                fileName = fileName_row[0].split(".")[0]  # ftpFileName
-                fileName_list.append(fileName)
-
-            # 遍历当前目录下所有文件名
-            csv_file_list = set()
-            for file in fileLists:
-                # 处理 REAL、ACTL、PLAN 格式文件
-                if file.split("_")[0] == 'REAL' or file.split("_")[0] == 'ACTL' or file.split("_")[0] == 'PLAN':
-                    # if re.search(r"REAL", file) or re.search(r"ACTL", file) or re.search(r"PLAN", file):
-                    ftp_filename = file.split(".")[0]
-
-                    # 如果mysql中没有记录的文件，即还没有处理的文件
-                    if ftp_filename not in fileName_list:
-                        scan_log.info(ftp_filename)
-
-                        # 获取接口代码数
-                        InterfaceCode = file.split("_")[0]
-
-                        scan_log.info(InterfaceCode)
-                        # 声明变量
-                        etl_begin_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-
-                        scan_log.info(etl_begin_time)
-
-                        # 获取 ftp 接口文件数据日期
-                        try:
-                            tableDate = file.split('_')[1][0:4] + '-' + file.split('_')[1][4:6] + '-' + file.split('_')[1][
-                                                                                                        6:8]
-
-                            file_list = mysql.show(
-                                "select FtpFileName from %s.%s where FtpFileName='%s' and etl_job_status = '%s'" % (mysqldb, mysqltable, file, new_status))
-                            mysql.delete("DELETE FROM %s.%s where FtpFileName='%s'" % (mysqldb, mysqltable, file))
-                            insert_sql = "insert into %s.%s(FtpFilePath, interfaceCode, FtpFileName,  " \
-                                         "FtpFilePushTime, etl_job_status, etl_begin_time, txDate) values(" \
-                                         "'%s','%s', " \
-                                         "'%s', null, '%s', '%s','%s')" % (
-                                             mysqldb, mysqltable, ftp_dir, InterfaceCode, file,
-                                             new_status,
-                                             etl_begin_time, tableDate)
-                            scan_log.info("处理 REAL、ACTL、PLAN 的语句：" + insert_sql)
-                            mysql.insert(insert_sql)
-                        except Exception as e:
-                            scan_log.error(e)
-
-                    # scan_log.info("nohup python3 LocalCSVToHive.py %s %s %s 1>/dev/null 2>&1 &" %
-                    #               (ftp_dir, file, local_dir))
-                    # os.system("nohup python3 LocalCSVToHive.py %s %s %s 1>/dev/null 2>&1 &" %
-                    #           (ftp_dir, file, local_dir))
-                    # mysql.update("UPDATE %s.%s SET etl_job_status='%s' WHERE FtpFileName = '%s'" % (
-                    #     mysqldb, mysqltable, assign_status, file))
-
-                # 处理 xml 格式文件
-                try:
-                    if file.split(".")[-1] == 'xml':
-                        dispose_xml(file)
-                except Exception as e:
-                    scan_log.error(e)
-
-                # 处理接口为 75、79、82、88 格式文件
-                # num_file_list = set()
-                try:
-                    if file[-2:] == '75' or file[-2:] == '79' or file[-2:] == '82' or file[-2:] == '88':
-                    # if file[-2:] == '79':
-                        if len(file) == 22:
-                            dispose_numfile(file)
-                except Exception as e:
-                    scan_log.error(e)
-
-                # 遍历所有chk文件
-                try:
-                    if file.split(".")[-1] == 'chk' and file.split(".")[0].split("_")[1] not in not_running_list:
-                        # chk 对应的数据文件名
-                        ftp_filename = file.split(".")[0]
-
-                        # 下载mysql中没有记录的文件，即还没有处理的文件
-                        if ftp_filename not in fileName_list:
-                            # chk 的 ftp 文件路径
-                            chk_ftp_file_path = ftp_dir + file
-                            # chk 的本地文件路径
-                            dst_file_path = local_dir + file
-                            scan_log.info("需要添加的文件名" + file)
-                            # os.system("rm -f dst_file_path")
-                            ftpinstance.download_file(ftp, chk_ftp_file_path, dst_file_path)
-                            ftp.rename(ftp_dir + file, ftp_bak_dir + file)
-
-                            # 读取 chk 文件中的信息
-                            chk_file_message = read_file(dst_file_path)
-
-                            FtpFilePushTime = ''
-
-                            # 修改 chk 文件内容中的时间格式
-                            if len(chk_file_message) == 4:
-                                FtpFilePushTime = timestamp_format(chk_file_message[3])
-                            elif len(chk_file_message) == 3:
-                                # 如果时间戳字段有问题，则设置为null
-                                FtpFilePushTime = "null"  # 数据文件的时间戳
-
-                            # 获取接口代码数
-                            InterfaceCode = ftp_filename.split("_")[1]
-
-                            # 获取 ftp 接口文件数据日期
-                            task_type = ftp_filename.split('.')[0].split('_')[0]
-                            if task_type == 'z' or task_type == 'q':
-                                tableDate = ftp_filename.split('_')[1][0:4] + '-' + ftp_filename.split('_')[1][4:6] + '-' + \
-                                            ftp_filename.split('_')[1][6:8]
-                                InterfaceCode = ftp_filename.split("_")[2]
-                            else:
-                                tableDate = ftp_filename.split('_')[0][0:4] + '-' + ftp_filename.split('_')[0][4:6] + '-' + \
-                                            ftp_filename.split('_')[0][6:8]
-
-                            exists_file_list = mysql.show(
-                                "select FtpFileName from %s.%s where FtpFileName='%s' and etl_job_status = '%s'" % (mysqldb, mysqltable, chk_file_message[0], new_status))
-
-                            mysql.delete("DELETE FROM %s.%s where FtpFileName='%s'" % (mysqldb, mysqltable, chk_file_message[0]))
-                            if FtpFilePushTime == 'null':
-                                insert_sql = "insert into %s.%s(FtpFilePath, interfaceCode, FtpFileName, FtpFileSize, " \
-                                             "FtpFileRecordNumber, FtpFilePushTime, etl_job_status, etl_begin_time, txDate) values(" \
-                                             "'%s','%s', " \
-                                             "'%s', %s, %s, null, '%s', '%s','%s')" % (
-                                                 mysqldb, mysqltable, ftp_dir, InterfaceCode, chk_file_message[0],
-                                                 chk_file_message[1],
-                                                 chk_file_message[2], new_status,
-                                                 etl_begin_time, tableDate)
-                            else:
-                                # 将下载好的 chk 文件信息记录到 Mysql 中
-                                insert_sql = "insert into %s.%s(FtpFilePath, interfaceCode, FtpFileName, FtpFileSize, " \
-                                             "FtpFileRecordNumber, FtpFilePushTime, etl_job_status, etl_begin_time, txDate) values(" \
-                                             "'%s','%s', " \
-                                             "'%s', %s, %s, '%s', '%s', '%s','%s')" % (
-                                                 mysqldb, mysqltable, ftp_dir, InterfaceCode, chk_file_message[0],
-                                                 chk_file_message[1], chk_file_message[2], FtpFilePushTime, new_status,
-                                                 etl_begin_time, tableDate)
-                            scan_log.info("正常插入语句：" + insert_sql)
-                            mysql.insert(insert_sql)
-                except Exception as e:
-                    scan_log.error(str(e))
-
-            if csv_file_list:
-                for csv_filename in csv_file_list:
-                    # 将生成的 CSV 和 CHK 文件上传至 FTP 服务器中
-                    ftpinstance.upload_file(ftp, local_dir + csv_filename, ftp_dir + csv_filename)
-                    ftpinstance.upload_file(ftp, local_dir + re.sub("csv", "chk", csv_filename),
-                                            ftp_dir + re.sub("csv", "chk", csv_filename))
-
-            scan_log.info('添加新文件名已完成')
-
-            # 删除数据文件不存在的任务
-            time.sleep(10)
-            scan_log.info("Enable tasks where file does not exist")
-
-            n = '%550 Could not get file size%'
-
-            delete_sql = "DELETE FROM bmnc_devops.etl_job_log where etl_job_error_log like '%s' and ctime < (select date_add(now(), interval -480 minute))" % n
-            scan_log.info(delete_sql)
-            mysql.delete(delete_sql)
-
-            time.sleep(10)
-            # 开启 new 和 error 状态的任务
-            # 查询状态
-            scan_log.info("Tasks that enable new and Error states")
-            start_new_and_error()
-
-            # 开启 PID 不存在的任务
-            time.sleep(20)
-            scan_log.info("Enable tasks where PID does not exist")
-            select_pid_sql = "select pid from %s.%s where pid is not null and (etl_job_status='%s' or etl_job_status='%s' or etl_job_status='%s')" % (
-                mysqldb, mysqltable, assign_status, download_status, upload_status)
-            select_pid_sql_res = mysql.show(select_pid_sql)
-            pid_count = 0
-            for pid_list in select_pid_sql_res:
-                # 获取 pid 不存在的文件名
-                FtpFileName_IdNotExist = pid_exists(pid_list[0])
-                if FtpFileName_IdNotExist is not None:
-                    scan_log.info("nohup python3 LocalCSVToHive.py %s %s %s 1>/dev/null 2>&1 &" %
-                                  (ftp_dir, FtpFileName_IdNotExist, local_dir))
-                    os.system("nohup python3 LocalCSVToHive.py %s %s %s 1>/dev/null 2>&1 &" % (
-                        ftp_dir, FtpFileName_IdNotExist, local_dir))
-                    mysql.update("UPDATE %s.%s SET etl_job_status='%s' WHERE FtpFileName = '%s'" % (
-                        mysqldb, mysqltable, assign_status, FtpFileName_IdNotExist))
-
-                    # pid_count = os.popen("ps -ef | grep LocalCSVToHive.py |grep -v grep|wc -l").read()
-                    pid_count += 1
-                    if pid_count % 50 == 0:
-                        time.sleep(240)
-
-            # for file in fileLists:
-            #
-            #     if re.search(r".csv", file):
-            #         only_csv_fileName = re.sub("csv", "chk", file)
-            #
-            #         ftp_filename = file.split(".")[0]
-            #
-            #         # 获取接口代码数
-            #         InterfaceCode = ftp_filename.split("_")[1]
-            #         # 声明变量
-            #         etl_begin_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-            #         # 获取 ftp 接口文件数据日期
-            #         task_type = ftp_filename.split('.')[0].split('_')[0]
-            #         if task_type == 'z' or task_type == 'q':
-            #             tableDate = ftp_filename.split('_')[1][0:4] + '-' + ftp_filename.split('_')[1][4:6] + '-' + \
-            #                         ftp_filename.split('_')[1][6:8]
-            #         else:
-            #             tableDate = ftp_filename.split('_')[0][0:4] + '-' + ftp_filename.split('_')[0][4:6] + '-' + \
-            #                         ftp_filename.split('_')[0][6:8]
-            #
-            #         if only_csv_fileName not in fileLists:
-            #             if re.search(r"ACTL", file) or re.search(r"PLAN", file) or re.search(r"REAL", file):
-            #                 scan_log.info(file)
-            #             else:
-            #                 insert_sql = "insert into %s.%s(FtpFilePath, interfaceCode, FtpFileName,  " \
-            #                              "FtpFilePushTime, etl_job_status, etl_begin_time, txDate) values(" \
-            #                              "'%s','%s', " \
-            #                              "'%s', null, '%s', '%s','%s')" % (
-            #                                  mysqldb, mysqltable, ftp_dir, InterfaceCode, file,
-            #                                  new_status,
-            #                                  etl_begin_time, tableDate)
-            #                 scan_log.info("只有csv的语句：" + insert_sql)
-            #                 mysql.insert(insert_sql)
+        # # 无限循环
+        # while True:
+        #     # 先将非结构化数据移至备份库
+        #     # for not_running in not_running_list:
+        #     #     os.system("python3 scan_chk.py _%s_" % not_running)
+        #
+        #     # 实例化
+        #     ftpinstance = FtpOps(host, port, ftpuname, ftppwd)
+        #
+        #     # 创建ftp连接
+        #     ftp = ftpinstance.ftp_connect()
+        #
+        #     # 切换目录
+        #     ftp.cwd(ftp_dir)
+        #
+        #     # 获取文件目录
+        #     fileLists = ftp.nlst()
+        #
+        #     # 数据文件路径
+        #     local_dir = os.path.dirname(os.path.abspath(__file__)) + '/data/20201010/'
+        #
+        #     # 连接 Mysql
+        #     mysql = Mysql(mysqlhost, mysqluser, mysqlpwd, mysqldb)
+        #
+        #     # 查询表中三天内的数据文件名
+        #     select_FileName_sql = "select ftpFileName from %s.%s where ctime between date_add(now(), interval -10 day) and now() " % (
+        #         mysqldb, mysqltable)
+        #     select_FileName_sql_res = mysql.show(select_FileName_sql)
+        #
+        #     # 遍历表中文件名
+        #     fileName_list = list()
+        #     for fileName_row in select_FileName_sql_res:
+        #         fileName = fileName_row[0].split(".")[0]  # ftpFileName
+        #         fileName_list.append(fileName)
+        #
+        #
+        #
+        #
+        #
+        #     # 遍历当前目录下所有文件名
+        #     csv_file_list = set()
+        #     for file in fileLists:
+        #         # 处理 REAL、ACTL、PLAN 格式文件
+        #         if file.split("_")[0] == 'REAL' or file.split("_")[0] == 'ACTL' or file.split("_")[0] == 'PLAN':
+        #             # if re.search(r"REAL", file) or re.search(r"ACTL", file) or re.search(r"PLAN", file):
+        #             ftp_filename = file.split(".")[0]
+        #
+        #             # 如果mysql中没有记录的文件，即还没有处理的文件
+        #             if ftp_filename not in fileName_list:
+        #                 scan_log.info(ftp_filename)
+        #
+        #                 # 获取接口代码数
+        #                 InterfaceCode = file.split("_")[0]
+        #
+        #                 scan_log.info(InterfaceCode)
+        #                 # 声明变量
+        #                 etl_begin_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+        #
+        #                 scan_log.info(etl_begin_time)
+        #
+        #                 # 获取 ftp 接口文件数据日期
+        #                 try:
+        #                     tableDate = file.split('_')[1][0:4] + '-' + file.split('_')[1][4:6] + '-' + file.split('_')[1][
+        #                                                                                                 6:8]
+        #
+        #                     file_list = mysql.show(
+        #                         "select FtpFileName from %s.%s where FtpFileName='%s' and etl_job_status = '%s'" % (mysqldb, mysqltable, file, new_status))
+        #                     mysql.delete("DELETE FROM %s.%s where FtpFileName='%s'" % (mysqldb, mysqltable, file))
+        #                     insert_sql = "insert into %s.%s(FtpFilePath, interfaceCode, FtpFileName,  " \
+        #                                  "FtpFilePushTime, etl_job_status, etl_begin_time, txDate) values(" \
+        #                                  "'%s','%s', " \
+        #                                  "'%s', null, '%s', '%s','%s')" % (
+        #                                      mysqldb, mysqltable, ftp_dir, InterfaceCode, file,
+        #                                      new_status,
+        #                                      etl_begin_time, tableDate)
+        #                     scan_log.info("处理 REAL、ACTL、PLAN 的语句：" + insert_sql)
+        #                     mysql.insert(insert_sql)
+        #                 except Exception as e:
+        #                     scan_log.error(e)
+        #
+        #             # scan_log.info("nohup python3 LocalCSVToHive.py %s %s %s 1>/dev/null 2>&1 &" %
+        #             #               (ftp_dir, file, local_dir))
+        #             # os.system("nohup python3 LocalCSVToHive.py %s %s %s 1>/dev/null 2>&1 &" %
+        #             #           (ftp_dir, file, local_dir))
+        #             # mysql.update("UPDATE %s.%s SET etl_job_status='%s' WHERE FtpFileName = '%s'" % (
+        #             #     mysqldb, mysqltable, assign_status, file))
+        #
+        #         # 处理 xml 格式文件
+        #         try:
+        #             if file.split(".")[-1] == 'xml':
+        #                 dispose_xml(file)
+        #         except Exception as e:
+        #             scan_log.error(e)
+        #
+        #         # 处理接口为 75、79、82、88 格式文件
+        #         # num_file_list = set()
+        #         try:
+        #             if file[-2:] == '75' or file[-2:] == '79' or file[-2:] == '82' or file[-2:] == '88':
+        #             # if file[-2:] == '79':
+        #                 if len(file) == 22:
+        #                     dispose_numfile(file)
+        #         except Exception as e:
+        #             scan_log.error(e)
+        #
+        #         # 遍历所有chk文件
+        #         try:
+        #             if file.split(".")[-1] == 'chk' and file.split(".")[0].split("_")[1] not in not_running_list:
+        #                 # chk 对应的数据文件名
+        #                 ftp_filename = file.split(".")[0]
+        #
+        #                 # 下载mysql中没有记录的文件，即还没有处理的文件
+        #                 if ftp_filename not in fileName_list:
+        #                     # chk 的 ftp 文件路径
+        #                     chk_ftp_file_path = ftp_dir + file
+        #                     # chk 的本地文件路径
+        #                     dst_file_path = local_dir + file
+        #                     scan_log.info("需要添加的文件名" + file)
+        #                     # os.system("rm -f dst_file_path")
+        #                     ftpinstance.download_file(ftp, chk_ftp_file_path, dst_file_path)
+        #                     ftp.rename(ftp_dir + file, ftp_bak_dir + file)
+        #
+        #                     # 读取 chk 文件中的信息
+        #                     chk_file_message = read_file(dst_file_path)
+        #
+        #                     FtpFilePushTime = ''
+        #
+        #                     # 修改 chk 文件内容中的时间格式
+        #                     if len(chk_file_message) == 4:
+        #                         FtpFilePushTime = timestamp_format(chk_file_message[3])
+        #                     elif len(chk_file_message) == 3:
+        #                         # 如果时间戳字段有问题，则设置为null
+        #                         FtpFilePushTime = "null"  # 数据文件的时间戳
+        #
+        #                     # 获取接口代码数
+        #                     InterfaceCode = ftp_filename.split("_")[1]
+        #
+        #                     # 获取 ftp 接口文件数据日期
+        #                     task_type = ftp_filename.split('.')[0].split('_')[0]
+        #                     if task_type == 'z' or task_type == 'q':
+        #                         tableDate = ftp_filename.split('_')[1][0:4] + '-' + ftp_filename.split('_')[1][4:6] + '-' + \
+        #                                     ftp_filename.split('_')[1][6:8]
+        #                         InterfaceCode = ftp_filename.split("_")[2]
+        #                     else:
+        #                         tableDate = ftp_filename.split('_')[0][0:4] + '-' + ftp_filename.split('_')[0][4:6] + '-' + \
+        #                                     ftp_filename.split('_')[0][6:8]
+        #
+        #                     exists_file_list = mysql.show(
+        #                         "select FtpFileName from %s.%s where FtpFileName='%s' and etl_job_status = '%s'" % (mysqldb, mysqltable, chk_file_message[0], new_status))
+        #
+        #                     mysql.delete("DELETE FROM %s.%s where FtpFileName='%s'" % (mysqldb, mysqltable, chk_file_message[0]))
+        #                     if FtpFilePushTime == 'null':
+        #                         insert_sql = "insert into %s.%s(FtpFilePath, interfaceCode, FtpFileName, FtpFileSize, " \
+        #                                      "FtpFileRecordNumber, FtpFilePushTime, etl_job_status, etl_begin_time, txDate) values(" \
+        #                                      "'%s','%s', " \
+        #                                      "'%s', %s, %s, null, '%s', '%s','%s')" % (
+        #                                          mysqldb, mysqltable, ftp_dir, InterfaceCode, chk_file_message[0],
+        #                                          chk_file_message[1],
+        #                                          chk_file_message[2], new_status,
+        #                                          etl_begin_time, tableDate)
+        #                     else:
+        #                         # 将下载好的 chk 文件信息记录到 Mysql 中
+        #                         insert_sql = "insert into %s.%s(FtpFilePath, interfaceCode, FtpFileName, FtpFileSize, " \
+        #                                      "FtpFileRecordNumber, FtpFilePushTime, etl_job_status, etl_begin_time, txDate) values(" \
+        #                                      "'%s','%s', " \
+        #                                      "'%s', %s, %s, '%s', '%s', '%s','%s')" % (
+        #                                          mysqldb, mysqltable, ftp_dir, InterfaceCode, chk_file_message[0],
+        #                                          chk_file_message[1], chk_file_message[2], FtpFilePushTime, new_status,
+        #                                          etl_begin_time, tableDate)
+        #                     scan_log.info("正常插入语句：" + insert_sql)
+        #                     mysql.insert(insert_sql)
+        #         except Exception as e:
+        #             scan_log.error(str(e))
+        #
+        #     if csv_file_list:
+        #         for csv_filename in csv_file_list:
+        #             # 将生成的 CSV 和 CHK 文件上传至 FTP 服务器中
+        #             ftpinstance.upload_file(ftp, local_dir + csv_filename, ftp_dir + csv_filename)
+        #             ftpinstance.upload_file(ftp, local_dir + re.sub("csv", "chk", csv_filename),
+        #                                     ftp_dir + re.sub("csv", "chk", csv_filename))
+        #
+        #     scan_log.info('添加新文件名已完成')
+        #
+        #     # 删除数据文件不存在的任务
+        #     time.sleep(10)
+        #     scan_log.info("Enable tasks where file does not exist")
+        #
+        #     n = '%550 Could not get file size%'
+        #
+        #     delete_sql = "DELETE FROM bmnc_devops.etl_job_log where etl_job_error_log like '%s' and ctime < (select date_add(now(), interval -480 minute))" % n
+        #     scan_log.info(delete_sql)
+        #     mysql.delete(delete_sql)
+        #
+        #     time.sleep(10)
+        #     # 开启 new 和 error 状态的任务
+        #     # 查询状态
+        #     scan_log.info("Tasks that enable new and Error states")
+        #     start_new_and_error()
+        #
+        #     # 开启 PID 不存在的任务
+        #     time.sleep(20)
+        #     scan_log.info("Enable tasks where PID does not exist")
+        #     select_pid_sql = "select pid from %s.%s where pid is not null and (etl_job_status='%s' or etl_job_status='%s' or etl_job_status='%s')" % (
+        #         mysqldb, mysqltable, assign_status, download_status, upload_status)
+        #     select_pid_sql_res = mysql.show(select_pid_sql)
+        #     pid_count = 0
+        #     for pid_list in select_pid_sql_res:
+        #         # 获取 pid 不存在的文件名
+        #         FtpFileName_IdNotExist = pid_exists(pid_list[0])
+        #         if FtpFileName_IdNotExist is not None:
+        #             scan_log.info("nohup python3 LocalCSVToHive.py %s %s %s 1>/dev/null 2>&1 &" %
+        #                           (ftp_dir, FtpFileName_IdNotExist, local_dir))
+        #             # os.system("nohup python3 LocalCSVToHive.py %s %s %s 1>/dev/null 2>&1 &" % (
+        #             #     ftp_dir, FtpFileName_IdNotExist, local_dir))
+        #             mysql.update("UPDATE %s.%s SET etl_job_status='%s' WHERE FtpFileName = '%s'" % (
+        #                 mysqldb, mysqltable, assign_status, FtpFileName_IdNotExist))
+        #
+        #             # pid_count = os.popen("ps -ef | grep LocalCSVToHive.py |grep -v grep|wc -l").read()
+        #             pid_count += 1
+        #             if pid_count % 50 == 0:
+        #                 time.sleep(240)
+        #
+        #     # for file in fileLists:
+        #     #
+        #     #     if re.search(r".csv", file):
+        #     #         only_csv_fileName = re.sub("csv", "chk", file)
+        #     #
+        #     #         ftp_filename = file.split(".")[0]
+        #     #
+        #     #         # 获取接口代码数
+        #     #         InterfaceCode = ftp_filename.split("_")[1]
+        #     #         # 声明变量
+        #     #         etl_begin_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+        #     #         # 获取 ftp 接口文件数据日期
+        #     #         task_type = ftp_filename.split('.')[0].split('_')[0]
+        #     #         if task_type == 'z' or task_type == 'q':
+        #     #             tableDate = ftp_filename.split('_')[1][0:4] + '-' + ftp_filename.split('_')[1][4:6] + '-' + \
+        #     #                         ftp_filename.split('_')[1][6:8]
+        #     #         else:
+        #     #             tableDate = ftp_filename.split('_')[0][0:4] + '-' + ftp_filename.split('_')[0][4:6] + '-' + \
+        #     #                         ftp_filename.split('_')[0][6:8]
+        #     #
+        #     #         if only_csv_fileName not in fileLists:
+        #     #             if re.search(r"ACTL", file) or re.search(r"PLAN", file) or re.search(r"REAL", file):
+        #     #                 scan_log.info(file)
+        #     #             else:
+        #     #                 insert_sql = "insert into %s.%s(FtpFilePath, interfaceCode, FtpFileName,  " \
+        #     #                              "FtpFilePushTime, etl_job_status, etl_begin_time, txDate) values(" \
+        #     #                              "'%s','%s', " \
+        #     #                              "'%s', null, '%s', '%s','%s')" % (
+        #     #                                  mysqldb, mysqltable, ftp_dir, InterfaceCode, file,
+        #     #                                  new_status,
+        #     #                                  etl_begin_time, tableDate)
+        #     #                 scan_log.info("只有csv的语句：" + insert_sql)
+        #     #                 mysql.insert(insert_sql)
 
             # 关闭数据库连接
-            mysql.close()
+            # mysql.close()
 
-            ftp.close()
+            # ftp.close()
+            #
+            # time.sleep(10)
 
-            time.sleep(10)
-
-    # 参数个数为两个或两个以上时
-    else:
-        scan_log.info("Incorrect number of parameters.")
-        sys.exit(1)
+    # # 参数个数为两个或两个以上时
+    # else:
+    #     scan_log.info("Incorrect number of parameters.")
+    #     sys.exit(1)

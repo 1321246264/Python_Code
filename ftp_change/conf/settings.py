@@ -55,7 +55,7 @@ const.HDFS_PATH = '/user/hive/warehouse/bmnc_sdata_temp.db'
 # const.MYSQLPASSWORD = 'hive'
 # const.MYSQLDATABASE = 'hive'
 
-const.MYSQLIP = '192.168.31.175'
+const.MYSQLIP = '192.168.8.101'
 const.MYSQLUSERNAME = 'root'
 const.MYSQLPASSWORD = 'root'
 const.MYSQLDATABASE = 'ww'
@@ -75,9 +75,9 @@ const.ETL_LOG_ERROR = 'error'
 const.ETL_LOG_SUCCESS = 'success'
 
 # ftp 配置信息
-const.FTPIP = '192.168.31.1752'
-const.FTPUSERNAME = 'ww'
-const.FTPPASSWORD = 'ww'
+const.FTPIP = '192.168.8.101'
+const.FTPUSERNAME = 'www'
+const.FTPPASSWORD = 'www'
 const.FTPPORT = 21
 # const.FTP_DIR = '/home/etl_acc_ftp_put/dataflow'
 const.FTP_DIR = '/'
