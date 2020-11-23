@@ -784,6 +784,8 @@ if __name__ == '__main__':
         # print(fff)
         # print('111')
 
+        ftp.size('qwwqreqwr')
+
 
 
         # 数据文件路径
@@ -807,26 +809,62 @@ if __name__ == '__main__':
         for file in fileLists:
 
             # try:
-            #
-            #     if ftp.size(file) == 0:
+            #     print(file)
+            #     if file != 'd' and ftp.size(file) == 0:
             #         print("size = 0:")
             #         print(file)
             #         print("----------")
-            #         # ftp.rename(ftp_dir + file, ftp_bak_dir + file)
+            #         ftp.rename(ftp_dir + file, ftp_bak_dir + file)
             # except Exception as e:
             #     print(e)
 
             # 处理已经成功处理的文件
-            try:
-                if file != 'd' and file.split(".")[1] != 'GPDD' and file.split(".")[1] != 'XJCX' and file.split(".")[1] != 'JCYG' and \
-                        file.split(".")[1] != 'LJJY' and file.split(".")[1] != '010016':
+            # try:
+            #     if file != 'd' and file.split(".")[1] != 'GPDD' and file.split(".")[1] != 'XJCX' and file.split(".")[1] != 'JCYG' and \
+            #             file.split(".")[1] != 'LJJY' and file.split(".")[1] != '010016':
+            #         etl_job_status_list = mysql.show(
+            #             "select etl_job_status from %s.%s where ftpfilename='%s'" % (mysqldb, mysqltable, file))
+            #         print(file)
+            #         if not etl_job_status_list:
+            #
+            #             aaaa = etl_job_status_list[0][0]
+            #             print(aaaa)
+            #             print(type(aaaa))
+            #
+            # except Exception as e:
+            #     print(e)
+
+            l = list()
+
+            l.append('d1_asdfasf')
+            l.append('d2_asdfasf')
+            l.append('d3asdfasf')
+            l.append('d4_asdfasf')
+            l.append('d5_asdfasf')
+            l.append('d6_asdfasf')
+            l.append('d7_asdfasf')
+            l.append('d8asdfasf')
+            l.append('d9asdfasf')
+            l.append('d10_asdfasf')
+            l.append('d11_asdfasf')
+            l.append('d12asdfasf')
+            l.append('d13_asdfasf')
+            l.append('d14_asdfasf')
+            l.append('d15_asdfasf')
+
+            for file in l:
+                try:
                     etl_job_status_list = mysql.show(
                         "select etl_job_status from %s.%s where ftpfilename='%s'" % (mysqldb, mysqltable, file))
-                    print(etl_job_status_list)
-                    print(type(etl_job_status_list))
+                    print(file)
+                    if not etl_job_status_list:
+                        aaaa = etl_job_status_list[0][0]
+                        print(aaaa)
+                        print(type(aaaa))
+                except Exception as e:
+                    print(e)
 
-            except Exception as e:
-                print(e)
+
 
 
         ftp.close()

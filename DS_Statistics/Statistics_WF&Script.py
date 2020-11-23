@@ -184,7 +184,7 @@ def local_get_min_max(csv_fliename, subao_list, zhongbao_list):
 
 
 if __name__ == '__main__':
-    csv_fliename = 'D:\\统计工作流及任务执行时间.csv'
+    csv_fliename = './get.csv'
     subao_list = ['T98_OWNLINE_ENEX_PQ_DATE_ST0300',
                   'T98_OWNEN_OTHEX_PQ_DATE_ST0300',
                   'T98_PASS_OWNLINE_PQ_DATE_ST0300',
